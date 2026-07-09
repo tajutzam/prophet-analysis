@@ -1,0 +1,1 @@
+import{t as e}from"./app-BluNM_8E.js";var t=e();function n(e){return(0,t.jsx)(`img`,{...e,src:`/logo.png`,alt:`Umaklin Logo`})}export{n as t};

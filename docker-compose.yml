@@ -1,0 +1,73 @@
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: umaklin-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-umaklin}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_USER: ${DB_USERNAME:-sail}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - umaklin-network
+
+  # Laravel Web Application
+  app:
+    build:
+      context: ./umaklin-web
+      dockerfile: Dockerfile
+    container_name: umaklin-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./umaklin-web:/var/www
+    environment:
+      - AI_SERVICE_URL=http://ai-service:8001
+    networks:
+      - umaklin-network
+    depends_on:
+      - db
+
+  # Nginx Web Server for Laravel
+  nginx:
+    image: nginx:alpine
+    container_name: umaklin-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./umaklin-web:/var/www
+      - ./umaklin-web/docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - umaklin-network
+    depends_on:
+      - app
+
+  # Python AI Service (FastAPI)
+  ai-service:
+    build:
+      context: ./python-service
+      dockerfile: Dockerfile
+    container_name: umaklin-ai
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=mysql+pymysql://${DB_USERNAME:-sail}:${DB_PASSWORD:-root}@db:3306/${DB_DATABASE:-umaklin}
+    networks:
+      - umaklin-network
+    depends_on:
+      - db
+
+networks:
+  umaklin-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
